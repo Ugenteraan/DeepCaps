@@ -4,6 +4,7 @@ PyTorch implementation of Deep-CapsNet architecture.
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as func
 
 
 def squash(caps, dim=-1, eps=1e-8):
@@ -109,10 +110,83 @@ class Conv3DCaps(nn.Module):
         self.kernel_size = kernel_size
         self.routing_iter = routing_iter
 
+        #In the original CapsNet architecture (2017), every capsule in Primary Layer will be multiplied by a (possibly unique) transformation matrices
+        #(i.e. fully connected) and then each of those transformed capsules will be used to vote for every capsule in the DigitCaps layer. In this paper,
+        #a SUBSET of capsule in a block will be transformed to be used to vote for the higher level capsules (3D Dynamic Routing). NOTE: the stride of
+        #'caps_num_in' during 3D Conv makes sure only a subset of one single capsule will be transformed and that the number of features outputted can be
+        #converted to the number of desired output capsules. In contrast to the original dynamic routing, 3D dynamic routing have far less parameters.
+        #Since all the capsules are products of convolution operations, adjacent capsules would contain similar information. Thus the stride.
+
         reshaped_in_channels = 1
         reshaped_out_channels = self.caps_num_out * self.conv_channel_out
         stride = (caps_num_in, 1, 1)
         pad = (0, 1, 1)
+
+        self.3dconv = nn.Conv3d(in_channels=reshaped_in_channels,
+                                out_channels=reshaped_out_channels,
+                                kernel_size=self.kernel_size,
+                                padding=pad)
+
+
+        def forward(self, x):
+            '''
+            Forward Propagation.
+            '''
+            batch_size = x.size()[0]
+            x = x.view(batch_size, self.conv_channel_in*self.caps_num_in, self.height, self.width)
+            x = x.unsqueeze(1)
+            x = self.3dconv(x)
+            self.height, self.width = x.size()[-2:]
+
+            #ALL the permute operations are done according to the paper.
+            x = x.permute(0,2,1,3,4)
+            x = x.view(batch_size, self.conv_channel_in, self.conv_channel_out, self.caps_num_out, self.height, self.width)
+
+            x = x.permute(0, 4, 6, 3, 2, 1).contiguous()
+            self.B = x.new(batch_size, self.width, self.height, 1, self.caps_num_out, self.caps_num_in).zero()
+
+            x = self.routing(x, batch_size, self.routing_iter)
+
+
+
+        def routing(self, x, batch_size, routing_iter=3):
+            '''
+            Dynamic routing.
+            '''
+            for iter_idx in range(routing_iter):
+                #The 3D softmax proposed softmaxes along 3 dimensions. Output channel, width, and height dimensions. This operation is equivalent to
+                #permute the tensor temporarily such that the 3 desired dimensions are the the far right axes, reshape them into 1 single dimension and
+                #perform the existing softmax function in that dimension. This means that even the feature maps in the capsules are individually contributing
+                #to the feature maps in the next layer.
+                temp = self.B.permute(0, 5, 3, 1, 2, 4).contiguous().view(batch_size, self.conv_channel_in, 1, self.height*self.width*self.conv_channel_out)
+
+                k = func.softmax(temp, dim=-1) #apply softmax on the last dimension.
+
+                #After the softmax, we can reshape and permute the tensor to the way it was.
+                k = k.view(batch_size, self.conv_channel_in, 1, self.width, self.height, self.conv_channel_out).permute(0, 3, 4, 2, 5, 1).contiguous()
+
+                S_tmp = k*x
+
+                S = torch.sum(S_tmp, dim=-1, keepdim=True)
+
+                S_hat = squash(S, dim=3) #squashing along the capsule's dimension.
+
+                if iter_idx < routing_iter - 1:
+
+                    agreements = (S_hat * x).sum(dim=3, keepdim=3)
+                    self.B = self.B + agreements
+
+            S_hat = S_hat.squeeze(-1)
+
+            return S_hat.permute(0, 4, 3, 1, 2).contiguous()
+
+
+
+
+
+
+
+
 
 
 
@@ -172,7 +246,26 @@ class DeepCaps(nn.Module):
 
         self.conv2dcaps_30 = Conv2DCaps(height=4, width=4, conv_channel_in=32, caps_num_in=8, conv_channel_out=32,
                                         caps_num_out=8, stride=2)
-        self.conv3dcaps_31 = Conv3DCaps()
+        self.conv3dcaps_31 = Conv3DCaps(height=2, width=2, conv_channel_in=32, caps_num_in=8, conv_channel_out=32, caps_num_out=8)
+        self.conv2dcaps_32 = Conv2DCaps(height=2, width=2, conv_channel_in=32, caps_num_in=8, conv_channel_out=32,
+                                        caps_num_out=8, stride=1)
+        self.conv2dcaps_33 = Conv2DCaps(height=2, width=2, conv_channel_in=32,  caps_num_in=8, conv_channel_out=32,
+                                        caps_num_out=8, stride=1)
+
+
+
+
+        def flatten_caps(self, x):
+            '''
+            Removes spatial relationship between adjacent capsules while keeping the part-whole relationships between the capsules in the previous
+            layer and the following layer before/after flatten_caps process.
+            '''
+            batch_size, _, dimensions, _, _ = x.size()
+            x = x.permute(0, 3, 4, 1, 2).contiguous()
+            return x.view(batch_size, -1, dimensions)
+
+
+
 
 
 
