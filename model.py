@@ -143,7 +143,7 @@ class Conv3DCaps(nn.Module):
             x = x.view(batch_size, self.conv_channel_in, self.conv_channel_out, self.caps_num_out, self.height, self.width)
 
             x = x.permute(0, 4, 6, 3, 2, 1).contiguous()
-            self.B = x.new(batch_size, self.width, self.height, 1, self.caps_num_out, self.caps_num_in).zero()
+            self.B = x.new(batch_size, self.width, self.height, 1, self.caps_num_out, self.caps_num_in).zero_()
 
             x = self.routing(x, batch_size, self.routing_iter)
 
@@ -182,30 +182,143 @@ class Conv3DCaps(nn.Module):
 
 
 
+class FC_Caps(nn.Module):
+
+    def __init__(self, output_capsules, input_capsules, in_dimensions, out_dimensions, routing_iter=3):
+        '''
+        Param init.
+        '''
+
+        super().__init__()
+
+        self.output_capsules = output_capsules
+        self.input_capsules = input_capsules
+        self.in_dimensions = in_dimensions
+        self.out_dimensions = out_dimensions
+        self.routing_iter = routing_iter
+
+        self.W = nn.parameter(torch.randn(1, self.input_capsules, self.output_capsules, self.out_dimensions, self.in_dimensions)*0.01)
+        self.b = nn.Parameter(torch.randn(1, 1, self.output_capsules, self.out_dimensions)*0.01)
+
+
+    def forward(self, x):
+        '''
+        Forward propagation with dynamic routing as proposed in the original 2017 paper.
+        '''
+
+        x = x.unsqueeze(dim=2).unsqueeze(dim=4)
+
+        u_hat = torch.matmul(self.W, x).squeeze()
+
+        b_ij = x.new(x.size()[0], self.input_capsules, self.output_capsules, 1).zero_()
+
+        #Dynamic routing
+        for iter_idx in range(self.routing_iter):
+
+            c_ij = func.softmax(b_ij, dim=2)
+            s_j = (c_ij*u_hat).sum(dim=1, keepdim=True)
+            v_j = squash(s_j, dim=-1)
+
+            if iter_idx < self.routing_iter-1:
+
+                a_ij = (u_hat * v_j).sum(dim=-1, keepdim=True)
+                b_ij = b_ij + a_ij
+
+        return v_j.squeeze()
+
+
+class Mask_CID(nn.Module):
+    '''
+    Masks out all capsules except the capsules that represent the class.
+    '''
+
+    def __init__(self):
+
+        super().__init__()
+
+    def forward(self, x, target=None):
+
+        batch_size = x.size()[0]
+
+        if target is None:
+            classes = torch.norm(x, dim=2)
+            max_len_indices = classes.max(dim=1)[1].squeeze()
+        else:
+            max_len_indices = target.max(dim=1)[1]
+
+        batch_ind = torch.arange(start=0, end=batch_size) #a tensor containing integer from 0 to batch size.
+        m = torch.stack([batch_ind, max_len_indices]) #records the label's index for every batch.
+
+        masked = torch.zeros((batch_size, 1) + x.size()[2:])
+
+        for i in range(batch_size):
+            masked[i] = x[m[i][0], m[i][1], :].unsqueeze(0)
+
+        return masked.squeeze(-1), max_len_indices
 
 
 
+class Decoder(nn.Module):
+    '''
+    Reconstruct back the input image from the prediction capsule using transposed Convolutions.
+    '''
+
+    def __init__(self, caps_dimension, num_caps=1, img_size=28, img_channels=1):
+
+        self.num_caps = num_caps
+        self.img_channels = img_channels
+        self.img_size = img_size
+        self.caps_dimension = caps_dimension
+
+        self.fc = nn.Sequential(torch.nn.Linear(self.caps_dimension*self.num_caps, 7*7*16), nn.ReLU(inplace=True))
+
+        self.reconst_layers1 = nn.Sequential(nn.BatchNorm2d(num_features=16, momentum=0.8),
+                                                nn.ConvTranspose2d(in_channels=16, out_channels=64,
+                                                kernel_size=3, stride=1, padding=1))
+
+        self.reconst_layers2 = nn.ConvTranspose2d(in_channels=64, out_channels=32, kernel_size=3, stride=2, padding=1)
+        self.reconst_layers3 = nn.ConvTranspose2d(in_channels=32, out_channels=16, kernel_size=3, stride=2, padding=1)
+        self.reconst_layers4 = nn.Sequential(nn.ConvTranspose2d(in_channels=16, out_channels=1, kernel_size=3, stride=1, padding=1),
+                                                nn.ReLU(inplace=True))
 
 
+    def forward(self, x):
+        '''
+        Forward Propagation
+        '''
+
+        x = x.type(torch.FloatTensor)
+
+        x = self.fc(x)
+        x = x.reshape(-1, 16, 7, 7)
+        x = self.reconst_layers1(x)
+        x = self.reconst_layers2(x)
+
+        p2d = (1, 0, 1, 0)
+        x = func.pad(x, p2d, "constant", 0)
+        x = self.reconst_layers3(x)
+
+        x = func.pad(x, p2d, "constant", 0)
+        x = self.reconst_layers4(x)
+
+        x = x.view(-1, 1, self.img_size, self.img_size)
+
+        return x
 
 
-
-
-
-
-
-
-class DeepCaps(nn.Module):
+class DeepCapsModel(nn.Module):
     '''
     DeepCaps Model.
     '''
 
-    def __init__(self):
+    def __init__(self, num_class):
         '''
         Init the architecture and parameters.
         '''
 
         super(self, DeepCaps).__init__()
+
+        self.num_class = num_class
 
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=128, kernel_size=3, stride=1, padding=1)
         self.bn1 = torch.nn.BatchNorm2d(num_features=128, eps=1e-08, momentum=0.99)
@@ -252,6 +365,63 @@ class DeepCaps(nn.Module):
         self.conv2dcaps_33 = Conv2DCaps(height=2, width=2, conv_channel_in=32,  caps_num_in=8, conv_channel_out=32,
                                         caps_num_out=8, stride=1)
 
+        self.fc_caps = FC_Caps(output_capsules=self.num_class, input_capsules=640, in_dimensions=8, out_dimensions=16, routing_iter=3)
+
+        self.mask = Mask_CID()
+        self.decoder = Decoder(caps_dimension=16, num_caps=1, img_size=28, img_channels=1)
+
+
+        def forward(self, x, target=None):
+            '''
+            Forward Propagation of DeepCaps Model.
+            '''
+
+            x = self.conv1(x)
+            x = self.bn1(x)
+            x = self.toCaps(x)
+
+            x = self.conv2dcaps_00(x)
+            x_skip = self.conv2dcaps_01(x)
+            x = self.conv2dcaps_02(x)
+            x = self.conv2dcaps_03(x)
+
+            x = x + x_skip
+
+            x = self.conv2dcaps_10(x)
+            x_skip = self.conv2dcaps_11(x)
+            x = self.conv2dcaps_12(x)
+            x = self.conv2dcaps_13(x)
+
+            x = x + x_skip
+
+            x = self.conv2dcaps_20(x)
+            x_skip = self.conv2dcaps_21(x)
+            x = self.conv2dcaps_22(x)
+            x = self.conv2dcaps_23(x)
+
+            x = x + x_skip
+            x1 = x
+
+            x = self.conv2dcaps_30(x)
+            x_skip = self.conv2dcaps_31(x)
+            x = self.conv2dcaps_32(x)
+            x = self.conv2dcaps_33(x)
+
+            x = x + x_skip
+            x2 = x
+
+            xa = flatten_caps(x1)
+            xb = flatten_caps(x2)
+
+            x = torch.cat((xa, xb), dim=-2)
+            dig_caps = self.fc_caps(x)
+
+            x = to_scalar(dig_caps)
+
+            masked, indices = self.mask(dig_caps, target)
+            decoded = self.decoder(masked)
+
+            return dig_caps, masked, decoded, indices
 
 
 
@@ -263,6 +433,48 @@ class DeepCaps(nn.Module):
             batch_size, _, dimensions, _, _ = x.size()
             x = x.permute(0, 3, 4, 1, 2).contiguous()
             return x.view(batch_size, -1, dimensions)
+
+        def to_scalar(self, x):
+            '''
+            Calculate and returns the length of each capsule.
+            '''
+            return torch.norm(x, dim=2)
+
+
+        def margin_loss(self, x, labels, lambda_, m_plus, m_minus):
+            '''
+            Classification loss.
+            '''
+            batch_size = x.size()[0]
+
+            v_c = torch.norm(x, dim=2, keepdim=True)
+
+            #we're using ReLU functions here because ReLU selects 0 when the tensor given is below 0.
+            max_l = func.relu(m_plus - v_c).view(batch_size, -1)**2
+            max_r = func.relu(v_c - m_minus).view(batch_size, -1)**2
+
+            classification_loss = (labels*max_l + lambda_*(1-labels)*max_r).sum(dim=1)
+            return classification_loss
+
+        def reconstruction_loss(self, reconstructed, data):
+            '''
+            Reconstruction loss.
+            '''
+            batch_size = reconstructed.size()[0]
+            loss = self.mse_loss(reconstructed.view(batch_size, -1), data.view(batch_size, -1))
+            return 0.4 * loss.sum(dim=1)
+
+
+        def loss(self, x, reconstructed, data, labels, lambda_=0.5, m_plus=0.9, m_minus=0.1):
+            '''
+            Mean of total loss calculation. Both reconstruction loss and classification loss.
+            '''
+            total_loss = self.margin_loss(x, labels, lambda_, m_plus, m_minus) + self.reconstruction_loss(reconstructed, data)
+            return total_loss.mean()
+
+
+
+
 
 
 
