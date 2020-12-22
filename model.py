@@ -41,7 +41,7 @@ class Conv2DCaps(nn.Module):
     2D Convolution on capsules.
     '''
 
-    def __init__(self, height, width, conv_channel_in, caps_num_in, conv_channel_out, caps_num_out, kernel_size=3, stride=1, routing_iter=1, pad=1):
+    def __init__(self, height, width, conv_channel_in, caps_num_in, conv_channel_out, caps_num_out, device, kernel_size=3, stride=1, routing_iter=1, pad=1):
         '''
         Parameter Init.
         '''
@@ -57,6 +57,7 @@ class Conv2DCaps(nn.Module):
         self.stride = stride
         self.routing_iter = routing_iter
         self.pad = pad
+        self.device = device
 
         #Capsule 2D convolution works by temporarily reshaping the capsule tensors[batch size, channels, num capsules, feature width, feature height]
         #back to conv tensors [batch size, channels, feature width, feature height] and perform a typical 2D Convolution process. The output of this
@@ -69,7 +70,7 @@ class Conv2DCaps(nn.Module):
         reshaped_out_channels= self.conv_channel_out*self.caps_num_out
 
         self.conv = nn.Conv2d(in_channels=reshaped_in_channels, out_channels=reshaped_out_channels, kernel_size=self.kernel_size, stride=self.stride,
-                            padding=self.pad)
+                            padding=self.pad).to(self.device)
 
 
     def forward(self, inputs):
@@ -96,7 +97,7 @@ class Conv3DCaps(nn.Module):
     3D Convolution on capsules.
     '''
 
-    def __init__(self, height, width, conv_channel_in, caps_num_in, conv_channel_out, caps_num_out, kernel_size=3, routing_iter=3):
+    def __init__(self, height, width, conv_channel_in, caps_num_in, conv_channel_out, caps_num_out, device, kernel_size=3, routing_iter=3):
         '''
         Parameter Init.
         '''
@@ -110,6 +111,7 @@ class Conv3DCaps(nn.Module):
         self.caps_num_out = caps_num_out
         self.kernel_size = kernel_size
         self.routing_iter = routing_iter
+        self.device = device
 
         #In the original CapsNet architecture (2017), every capsule in Primary Layer will be multiplied by a (possibly unique) transformation matrices
         #(i.e. fully connected) and then each of those transformed capsules will be used to vote for every capsule in the DigitCaps layer. In this paper,
@@ -127,7 +129,7 @@ class Conv3DCaps(nn.Module):
         self.conv_3d = nn.Conv3d(in_channels=reshaped_in_channels,
                                 out_channels=reshaped_out_channels,
                                 kernel_size=self.kernel_size,
-                                padding=pad, stride=stride)
+                                padding=pad, stride=stride).to(self.device)
 
 
     def forward(self, x):
@@ -145,16 +147,16 @@ class Conv3DCaps(nn.Module):
         x = x.view(batch_size, self.conv_channel_in, self.conv_channel_out, self.caps_num_out, self.height, self.width)
 
         x = x.permute(0, 4, 5, 3, 2, 1).contiguous()
-        x_detached = x.contiguous().detach()
-        self.B = x_detached.new(batch_size, self.width, self.height, 1, self.conv_channel_out, self.conv_channel_in).zero_()
+        x_detached = x.detach()
+        self.B = x_detached.new(batch_size, self.width, self.height, 1, self.conv_channel_out, self.conv_channel_in).zero_().to(self.device).detach()
 
-        x = self.routing(x_detached, batch_size, self.routing_iter)
+        x = self.routing(x, x_detached, batch_size, self.routing_iter)
 
         return x
 
 
 
-    def routing(self, x, batch_size, routing_iter=3):
+    def routing(self, x, x_detached, batch_size, routing_iter=3):
         '''
         Dynamic routing.
         '''
@@ -170,16 +172,16 @@ class Conv3DCaps(nn.Module):
             #After the softmax, we can reshape and permute the tensor to the way it was.
             k = k.view(batch_size, self.conv_channel_in, 1, self.width, self.height, self.conv_channel_out).permute(0, 3, 4, 2, 5, 1).contiguous()
 
-            S_tmp = k*x
+            if iter_idx == routing_iter-1:
+                S = (k*x).sum(dim=-1, keepdim=True)
+                S_hat = squash(S, dim=3)
 
-            S = torch.sum(S_tmp, dim=-1, keepdim=True)
-
-            S_hat = squash(S, dim=3) #squashing along the capsule's dimension.
-
-            if iter_idx < routing_iter - 1:
-
-                agreements = (S_hat * x).sum(dim=3, keepdim=True)
+            else:
+                S = (k*x_detached).sum(dim=-1, keepdim=True)
+                S_hat = squash(S, dim=3)
+                agreements = (S_hat * x_detached).sum(dim=3, keepdim=True)
                 self.B = self.B + agreements
+
 
         S_hat = S_hat.squeeze(-1)
 
@@ -189,7 +191,7 @@ class Conv3DCaps(nn.Module):
 
 class FC_Caps(nn.Module):
 
-    def __init__(self, output_capsules, input_capsules, in_dimensions, out_dimensions, routing_iter=3):
+    def __init__(self, output_capsules, input_capsules, in_dimensions, out_dimensions, device, routing_iter=3):
         '''
         Param init.
         '''
@@ -201,9 +203,10 @@ class FC_Caps(nn.Module):
         self.in_dimensions = in_dimensions
         self.out_dimensions = out_dimensions
         self.routing_iter = routing_iter
+        self.device = device
 
-        self.W = nn.Parameter(torch.randn(1, self.input_capsules, self.output_capsules, self.out_dimensions, self.in_dimensions)*0.01)
-        self.b = nn.Parameter(torch.randn(1, 1, self.output_capsules, self.out_dimensions)*0.01)
+        self.W = nn.Parameter(torch.randn(1, self.input_capsules, self.output_capsules, self.out_dimensions, self.in_dimensions)*0.01).to(self.device)
+        self.b = nn.Parameter(torch.randn(1, 1, self.output_capsules, self.out_dimensions)*0.01).to(self.device)
 
 
     def forward(self, x):
@@ -215,21 +218,24 @@ class FC_Caps(nn.Module):
 
         u_hat = torch.matmul(self.W, x).squeeze()
 
-        u_hat_detached = u_hat.contiguous().detach()
+        u_hat_detached = u_hat.detach()
 
-        b_ij = x.new(x.size()[0], self.input_capsules, self.output_capsules, 1).zero_()
+        b_ij = x.new(x.size()[0], self.input_capsules, self.output_capsules, 1).zero_().to(self.device)
 
         #Dynamic routing
         for iter_idx in range(self.routing_iter):
 
             c_ij = func.softmax(b_ij, dim=2)
-            s_j = (c_ij*u_hat_detached).sum(dim=1, keepdim=True)
-            v_j = squash(s_j, dim=-1)
 
-            if iter_idx < self.routing_iter-1:
+            if iter_idx == self.routing_iter - 1:
+                s_j = (c_ij * u_hat).sum(dim=1, keepdim=True) #multiply with the original u_hat since we want the gradient flow.
+                v_j = squash(s_j, dim=-1)
 
-                a_ij = (u_hat_detached * v_j).sum(dim=-1, keepdim=True)
-                b_ij = b_ij + a_ij
+            else:
+                s_j = (c_ij*u_hat_detached).sum(dim=1, keepdim=True) #no gradient flow.
+                v_j = squash(s_j, dim=-1)
+                a_ij = (u_hat_detached * v_j).sum(dim=-1, keepdim=True) #agreement check
+                b_ij = b_ij + a_ij #update the coefficients
 
         return v_j.squeeze()
 
@@ -239,28 +245,31 @@ class Mask_CID(nn.Module):
     Masks out all capsules except the capsules that represent the class.
     '''
 
-    def __init__(self):
+    def __init__(self, device):
 
         super(Mask_CID, self).__init__()
+        self.device = device
 
     def forward(self, x, target=None):
 
         batch_size = x.size()[0]
 
+        classes = torch.norm(x, dim=2)
         if target is None:
-            classes = torch.norm(x, dim=2)
             max_len_indices = classes.max(dim=1)[1].squeeze()
         else:
             max_len_indices = target.max(dim=1)[1]
 
-        batch_ind = torch.arange(start=0, end=batch_size) #a tensor containing integer from 0 to batch size.
-        m = torch.stack([batch_ind, max_len_indices], dim=1) #records the label's index for every batch.
-        masked = torch.zeros((batch_size, 1) + x.size()[2:])
+        batch_ind = torch.arange(start=0, end=batch_size).to(self.device) #a tensor containing integer from 0 to batch size.
+        m = torch.stack([batch_ind, max_len_indices], dim=1).to(self.device) #records the label's index for every batch.
+        masked = torch.zeros((batch_size, 1) + x.size()[2:]).to(self.device)
 
         for i in range(batch_size):
             masked[i] = x[m[i][0], m[i][1], :].unsqueeze(0)
 
-        return masked.squeeze(-1), max_len_indices
+        if target is None:
+            return masked.squeeze(-1), max_len_indices
+        return masked.squeeze(-1), classes.max(dim=1)[1].squeeze()
 
 
 
@@ -269,7 +278,7 @@ class Decoder(nn.Module):
     Reconstruct back the input image from the prediction capsule using transposed Convolutions.
     '''
 
-    def __init__(self, caps_dimension, num_caps=1, img_size=28, img_channels=1):
+    def __init__(self, caps_dimension, device, num_caps=1, img_size=28, img_channels=1):
 
         super(Decoder, self).__init__()
 
@@ -278,8 +287,9 @@ class Decoder(nn.Module):
         self.img_size = img_size
         self.caps_dimension = caps_dimension
         self.neurons = self.img_size//4
+        self.device = device
 
-        self.fc = nn.Sequential(torch.nn.Linear(self.caps_dimension*self.num_caps, self.neurons*self.neurons*16), nn.ReLU(inplace=True))
+        self.fc = nn.Sequential(torch.nn.Linear(self.caps_dimension*self.num_caps, self.neurons*self.neurons*16), nn.ReLU(inplace=True)).to(self.device)
 
         self.reconst_layers1 = nn.Sequential(nn.BatchNorm2d(num_features=16, momentum=0.8),
                                                 nn.ConvTranspose2d(in_channels=16, out_channels=64,
@@ -296,7 +306,7 @@ class Decoder(nn.Module):
         Forward Propagation
         '''
 
-        x = x.type(torch.FloatTensor)
+        x = x.type(torch.FloatTensor).to(self.device)
 
         x = self.fc(x)
         x = x.reshape(-1, 16, self.neurons, self.neurons)
@@ -320,7 +330,7 @@ class DeepCapsModel(nn.Module):
     DeepCaps Model.
     '''
 
-    def __init__(self, num_class, img_height, img_width):
+    def __init__(self, num_class, img_height, img_width, device):
         '''
         Init the architecture and parameters.
         '''
@@ -336,53 +346,54 @@ class DeepCapsModel(nn.Module):
         self.toCaps = ConvertToCaps()
 
         self.conv2dcaps_00 = Conv2DCaps(height=self.height, width=self.width, conv_channel_in=128, caps_num_in=1, conv_channel_out=32,
-                                        caps_num_out=4, stride=2)
+                                        caps_num_out=4, stride=2, device=device)
         height, width = math.ceil(self.height/2), math.ceil(self.width/2)
         self.conv2dcaps_01 = Conv2DCaps(height=height, width=width, conv_channel_in=32, caps_num_in=4, conv_channel_out=32,
-                                        caps_num_out=4, stride=1)
+                                        caps_num_out=4, stride=1, device=device)
         self.conv2dcaps_02 = Conv2DCaps(height=height, width=width, conv_channel_in=32, caps_num_in=4, conv_channel_out=32,
-                                        caps_num_out=4, stride=1)
+                                        caps_num_out=4, stride=1, device=device)
         self.conv2dcaps_03 = Conv2DCaps(height=height, width=width, conv_channel_in=32, caps_num_in=4, conv_channel_out=32,
-                                        caps_num_out=4, stride=1)
+                                        caps_num_out=4, stride=1, device=device)
 
 
         self.conv2dcaps_10 = Conv2DCaps(height=height, width=width, conv_channel_in=32, caps_num_in=4, conv_channel_out=32,
-                                        caps_num_out=8, stride=2)
+                                        caps_num_out=8, stride=2, device=device)
         height, width = math.ceil(height/2), math.ceil(width/2)
         self.conv2dcaps_11 = Conv2DCaps(height=height, width=width, conv_channel_in=32, caps_num_in=8, conv_channel_out=32,
-                                        caps_num_out=8, stride=1)
+                                        caps_num_out=8, stride=1, device=device)
         self.conv2dcaps_12 = Conv2DCaps(height=height, width=width, conv_channel_in=32, caps_num_in=8, conv_channel_out=32,
-                                        caps_num_out=8, stride=1)
+                                        caps_num_out=8, stride=1, device=device)
         self.conv2dcaps_13 = Conv2DCaps(height=height, width=width, conv_channel_in=32, caps_num_in=8, conv_channel_out=32,
-                                        caps_num_out=8, stride=1)
+                                        caps_num_out=8, stride=1, device=device)
         self.conv2dcaps_13 = Conv2DCaps(height=height, width=width, conv_channel_in=32, caps_num_in=8, conv_channel_out=32,
-                                        caps_num_out=8, stride=1)
+                                        caps_num_out=8, stride=1, device=device)
 
 
         self.conv2dcaps_20 = Conv2DCaps(height=height, width=width, conv_channel_in=32, caps_num_in=8, conv_channel_out=32,
-                                        caps_num_out=8, stride=2)
+                                        caps_num_out=8, stride=2, device=device)
         height, width = math.ceil(height/2), math.ceil(width/2)
         self.conv2dcaps_21 = Conv2DCaps(height=height, width=width, conv_channel_in=32, caps_num_in=8, conv_channel_out=32,
-                                        caps_num_out=8, stride=1)
+                                        caps_num_out=8, stride=1, device=device)
         self.conv2dcaps_22 = Conv2DCaps(height=height, width=width, conv_channel_in=32, caps_num_in=8, conv_channel_out=32,
-                                        caps_num_out=8, stride=1)
+                                        caps_num_out=8, stride=1, device=device)
         self.conv2dcaps_23 = Conv2DCaps(height=height, width=width, conv_channel_in=32, caps_num_in=8, conv_channel_out=32,
-                                        caps_num_out=8, stride=1)
+                                        caps_num_out=8, stride=1, device=device)
 
 
         self.conv2dcaps_30 = Conv2DCaps(height=height, width=width, conv_channel_in=32, caps_num_in=8, conv_channel_out=32,
-                                        caps_num_out=8, stride=2)
+                                        caps_num_out=8, stride=2, device=device)
         height, width = math.ceil(height/2), math.ceil(width/2)
-        self.conv3dcaps_31 = Conv3DCaps(height=height, width=width, conv_channel_in=32, caps_num_in=8, conv_channel_out=32, caps_num_out=8)
+        self.conv3dcaps_31 = Conv3DCaps(height=height, width=width, conv_channel_in=32, caps_num_in=8, conv_channel_out=32, caps_num_out=8, device=device)
         self.conv2dcaps_32 = Conv2DCaps(height=height, width=width, conv_channel_in=32, caps_num_in=8, conv_channel_out=32,
-                                        caps_num_out=8, stride=1)
+                                        caps_num_out=8, stride=1, device=device)
         self.conv2dcaps_33 = Conv2DCaps(height=height, width=width, conv_channel_in=32,  caps_num_in=8, conv_channel_out=32,
-                                        caps_num_out=8, stride=1)
+                                        caps_num_out=8, stride=1, device=device)
 
-        self.fc_caps = FC_Caps(output_capsules=self.num_class, input_capsules=640, in_dimensions=8, out_dimensions=16, routing_iter=3)
+        self.fc_caps = FC_Caps(output_capsules=self.num_class, input_capsules=640, in_dimensions=8,
+                                    out_dimensions=16, routing_iter=3, device=device)
 
-        self.mask = Mask_CID()
-        self.decoder = Decoder(caps_dimension=16, num_caps=1, img_size=self.width, img_channels=1)
+        self.mask = Mask_CID(device=device)
+        self.decoder = Decoder(caps_dimension=16, num_caps=1, device=device, img_size=self.width, img_channels=1)
         self.mse_loss = nn.MSELoss(reduction='none')
 
 
