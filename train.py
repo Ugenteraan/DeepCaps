@@ -4,22 +4,28 @@ Model training script.
 
 import sys
 import os
+import cv2
+import numpy as np
 import torch
 from model import DeepCapsModel
-from load_data import FashionMNIST
-from helpers import onehot_encode
+from load_data import FashionMNIST, Cifar10
+from helpers import onehot_encode, accuracy_calc
 import cfg
 
 
 
-train_loader, test_loader = FashionMNIST(train_path=cfg.TRAIN_DATASET_PATH, test_path=cfg.TEST_DATASET_PATH, batch_size=cfg.BATCH_SIZE, shuffle=True)()
+train_loader, test_loader, img_size = Cifar10(train_path=cfg.TRAIN_DATASET_PATH,
+                                              test_path=cfg.TEST_DATASET_PATH,
+                                              batch_size=cfg.BATCH_SIZE,
+                                              shuffle=False)()
 
 
-def train(device=torch.device('cpu'), learning_rate=1e-4, batch_size=32, num_epochs=100, decay_step=10, gamma=0.98, num_classes=10, checkpoint_path=None):
+def train(img_size, device=torch.device('cpu'), learning_rate=1e-4, batch_size=32, num_epochs=100, decay_step=10, gamma=0.98,
+          num_classes=10, checkpoint_path=None):
     '''
     Function to train the DeepCaps Model
     '''
-    deepcaps = DeepCapsModel(num_class=num_classes).to(device) #initialize model
+    deepcaps = DeepCapsModel(num_class=num_classes, img_height=img_size, img_width=img_size).to(device) #initialize model
 
     if not checkpoint_path is None and os.path.exists(checkpoint_path):
         try:
@@ -34,35 +40,58 @@ def train(device=torch.device('cpu'), learning_rate=1e-4, batch_size=32, num_epo
 
     for epoch_idx in range(num_epochs):
 
-        for batch_idx, (train_data, label) in enumerate(train_loader):
+        batch_loss = 0
+        batch_accuracy = 0
+        batch_idx = 0
 
-            data, label = train_data.to(device), label.to(device)
+        for batch_idx, (train_data, labels) in enumerate(train_loader):
 
-            label = onehot_encode(label, num_classes=num_classes, device=device)
+            data, labels = train_data.to(device), labels.to(device)
+
+            onehot_label = onehot_encode(labels, num_classes=num_classes, device=device)
 
             optimizer.zero_grad()
 
-            outputs, masked, reconstructed, indices = deepcaps(data, label)
+            outputs, masked, reconstructed, indices = deepcaps(data, onehot_label)
 
-            cv2.imshow("ori img", data[0].cpu().permute(1,2,0).numpy())
-            cv2.waitKey(0)
+            loss = deepcaps.loss(x=outputs, reconstructed=reconstructed, data=data, labels=onehot_label)
 
-            cv2.imshow("reconstructed", reconstructed[0].cpu().permute(1,2,0).numpy())
-            cv2.waitKey(0)
+            loss.backward()
 
+            optimizer.step()
 
-
-
-
+            batch_loss += loss.item()
+            batch_accuracy += accuracy_calc(predictions=indices, labels=labels)
 
 
+        print(f"Epoch : {epoch_idx}, Accuracy : {batch_accuracy/(batch_idx+1)}, Total Loss : {batch_loss}")
+            # resize_img = cv2.resize(data[0].cpu().permute(1,2,0).numpy(), (64,64))
+            # cv2.imshow("Ori image", resize_img)
+            # cv2.waitKey(0)
+
+            # print(reconstructed.size())
+            # cv2.imshow("recon", reconstructed[0].permute(1,2,0).detach().cpu().numpy())
+            # cv2.waitKey(0)
+
+            # break
+
+
+
+        # cv2.destroyAllWindows()
 
 
 
 
 
 
-train()
+
+
+
+
+
+
+
+train(img_size=img_size)
 
 
 
