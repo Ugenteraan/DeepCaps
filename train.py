@@ -39,6 +39,9 @@ def train(img_size, device=torch.device('cpu'), learning_rate=1e-3, batch_size=3
     optimizer = torch.optim.Adam(deepcaps.parameters(), lr=learning_rate)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=decay_step, gamma=gamma)
 
+
+    best_accuracy = 0
+
     for epoch_idx in range(num_epochs):
 
         batch_loss = 0
@@ -64,21 +67,13 @@ def train(img_size, device=torch.device('cpu'), learning_rate=1e-3, batch_size=3
             batch_loss += loss.item()
             batch_accuracy += accuracy_calc(predictions=indices, labels=labels)
 
+        epoch_accuracy = batch_accuracy/(batch_idx+1)
+        print(f"Epoch : {epoch_idx}, Accuracy : {epoch_accuracy}, Total Loss : {batch_loss}")
 
-        print(f"Epoch : {epoch_idx}, Accuracy : {batch_accuracy/(batch_idx+1)}, Total Loss : {batch_loss}")
-            # resize_img = cv2.resize(data[0].cpu().permute(1,2,0).numpy(), (64,64))
-            # cv2.imshow("Ori image", resize_img)
-            # cv2.waitKey(0)
+        if best_accuracy < epoch_accuracy:
 
-            # print(reconstructed.size())
-            # cv2.imshow("recon", reconstructed[0].permute(1,2,0).detach().cpu().numpy())
-            # cv2.waitKey(0)
-
-            # break
-
-
-
-        # cv2.destroyAllWindows()
+            torch.save(deepcaps, checkpoint_path)
+            print("Saved model from epoch %d"%(epoch_idx))
 
 
 
@@ -91,8 +86,7 @@ def train(img_size, device=torch.device('cpu'), learning_rate=1e-3, batch_size=3
 
 
 
-
-train(img_size=img_size, device=cfg.DEVICE)
+train(img_size=img_size, device=cfg.DEVICE, checkpoint_path=cfg.CHECKPOINT_PATH)
 
 
 
