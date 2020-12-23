@@ -58,7 +58,7 @@ def plot_reconstruction(path, num_epoch, original_images, reconstructed_images, 
             title = "Pred Label : "+str(predicted_classes[i-11].item())
             img = reconstructed_images[i-11].permute(1,2,0).cpu().numpy()
         else:
-            title = "Original Label : "+str(true_classes[i].item())
+            title = "Original Label : "+str(true_classes[i-1].item())
             img = original_images[i-1].permute(1,2,0).cpu().numpy()
 
         fig.add_subplot(rows, columns, i)
