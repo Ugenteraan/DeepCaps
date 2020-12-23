@@ -13,6 +13,8 @@ def plot_loss_acc(path, num_epoch, train_accuracies, train_losses, test_accuraci
     Plot line graphs for the accuracies and loss at every epochs for both training and testing.
     '''
 
+    plt.clf()
+
     epochs = [x for x in range(num_epoch+1)]
 
     train_accuracy_df = pd.DataFrame({"Epochs":epochs, "Accuracy":train_accuracies, "Mode":['train']*(num_epoch+1)})
@@ -21,8 +23,8 @@ def plot_loss_acc(path, num_epoch, train_accuracies, train_losses, test_accuraci
     data = pd.concat([train_accuracy_df, test_accuracy_df])
 
     sns.lineplot(data=data, x='Epochs', y='Accuracy', hue='Mode')
-
-    plt.savefig(path+f'accuracy_epoch{num_epoch}.png')
+    plt.title('Accuracy Graph')
+    plt.savefig(path+f'accuracy_epoch_{num_epoch}.png')
 
     plt.clf()
 
@@ -32,8 +34,9 @@ def plot_loss_acc(path, num_epoch, train_accuracies, train_losses, test_accuraci
     data = pd.concat([train_loss_df, test_loss_df])
 
     sns.lineplot(data=data, x='Epochs', y='Loss', hue='Mode')
+    plt.title('Loss Graph')
 
-    plt.savefig(path+f'loss_epoch{num_epoch}.png')
+    plt.savefig(path+f'loss_epoch_{num_epoch}.png')
 
     return None
 
@@ -43,6 +46,7 @@ def plot_reconstruction(path, num_epoch, original_images, reconstructed_images, 
     Plots 10 reconstructed and original images from testing set.
     '''
 
+    plt.clf()
     fig=plt.figure(figsize=(20, 5))
     columns = 10
     rows = 2
@@ -63,6 +67,6 @@ def plot_reconstruction(path, num_epoch, original_images, reconstructed_images, 
         plt.xticks(())
         plt.yticks(())
 
-    plt.savefig(path+f"Original_vs_Reconstructed_Epoch{num_epoch}.png")
+    plt.savefig(path+f"Original_vs_Reconstructed_Epoch_{num_epoch}.png")
 
     return None

@@ -7,7 +7,6 @@ import helpers
 
 LEARNING_RATE = 1e-3
 NUM_EPOCHS = 200
-NUM_CLASS = 10
 BATCH_SIZE = 128
 LAMBDA_ = 0.5
 M_PLUS = 0.9

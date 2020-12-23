@@ -10,7 +10,7 @@ from torchvision import datasets, transforms
 
 class FashionMNIST:
 
-    def __init__(self, data_path, batch_size, shuffle, num_workers=4, rotation_degrees=30, translate=(0,0.2), scale=(0.85,1.2)):
+    def __init__(self, data_path, batch_size, shuffle, num_workers=4, rotation_degrees=30, translate=(0,0.2), scale=(0.95,1.2)):
 
         self.data_path = data_path
         self.batch_size = batch_size
@@ -49,7 +49,7 @@ class FashionMNIST:
 
 class Cifar10:
 
-    def __init__(self, data_path, batch_size, shuffle, num_workers=4, rotation_degrees=30, translate=(0,0.2), scale=(0.85, 1.2)):
+    def __init__(self, data_path, batch_size, shuffle, num_workers=4, rotation_degrees=30, translate=(0,0.2), scale=(0.95, 1.2)):
 
         self.data_path = data_path
         self.batch_size = batch_size
@@ -58,7 +58,6 @@ class Cifar10:
         self.rotation = rotation_degrees
         self.translate = translate
         self.scale = scale
-        self.shear = shear
         self.img_size = 32
         self.num_class = 10
 
