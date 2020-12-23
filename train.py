@@ -15,13 +15,12 @@ import cfg
 
 
 
-train_loader, test_loader, img_size = Cifar10(train_path=cfg.TRAIN_DATASET_PATH,
-                                              test_path=cfg.TEST_DATASET_PATH,
+train_loader, test_loader, img_size = FashionMNIST(data_path=cfg.DATASET_FOLDER,
                                               batch_size=cfg.BATCH_SIZE,
-                                              shuffle=False)()
+                                              shuffle=True)()
 
 
-def train(img_size, device=torch.device('cpu'), learning_rate=1e-3, batch_size=32, num_epochs=100, decay_step=10, gamma=0.98,
+def train(img_size, device=torch.device('cpu'), learning_rate=1e-3, num_epochs=500, decay_step=5, gamma=0.98,
           num_classes=10, checkpoint_path=None):
     '''
     Function to train the DeepCaps Model
@@ -44,10 +43,12 @@ def train(img_size, device=torch.device('cpu'), learning_rate=1e-3, batch_size=3
 
     for epoch_idx in range(num_epochs):
 
+        #Training
         batch_loss = 0
         batch_accuracy = 0
         batch_idx = 0
 
+        deepcaps.train()
         for batch_idx, (train_data, labels) in tqdm(enumerate(train_loader)):
 
             data, labels = train_data.to(device), labels.to(device)
@@ -68,22 +69,38 @@ def train(img_size, device=torch.device('cpu'), learning_rate=1e-3, batch_size=3
             batch_accuracy += accuracy_calc(predictions=indices, labels=labels)
 
         epoch_accuracy = batch_accuracy/(batch_idx+1)
-        print(f"Epoch : {epoch_idx}, Accuracy : {epoch_accuracy}, Total Loss : {batch_loss}")
+        print(f"Epoch : {epoch_idx}, Training Accuracy : {epoch_accuracy}, Training Loss : {batch_loss}")
+
+
+        #Testing
+        batch_loss = 0
+        batch_accuracy = 0
+        batch_idx = 0
+
+        deepcaps.eval()
+        for batch_idx, (test_data, labels) in tqdm(enumerate(test_loader)):
+
+
+            data, labels = test_data.to(device), labels.to(device)
+            onehot_label = onehot_encode(labels, num_classes=num_classes, device=device)
+
+            outputs, masked, reconstructed, indices = deepcaps(data, onehot_label)
+
+            loss = deepcaps.loss(x=outputs, reconstructed=reconstructed, data=data, labels=onehot_label)
+
+            batch_loss += loss.item()
+            batch_accuracy += accuracy_calc(predictions=indices, labels=labels)
+
+
+        epoch_accuracy = batch_accuracy/(batch_idx+1)
+        print(f"Epoch : {epoch_idx}, Testing Accuracy : {epoch_accuracy}, Testing Loss : {batch_loss}")
+
+        lr_scheduler.step()
 
         if best_accuracy < epoch_accuracy:
 
-            torch.save(deepcaps, checkpoint_path)
+            torch.save(deepcaps.state_dict(), checkpoint_path)
             print("Saved model from epoch %d"%(epoch_idx))
-
-
-
-
-
-
-
-
-
-
 
 
 train(img_size=img_size, device=cfg.DEVICE, checkpoint_path=cfg.CHECKPOINT_PATH)

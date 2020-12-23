@@ -148,7 +148,8 @@ class Conv3DCaps(nn.Module):
 
         x = x.permute(0, 4, 5, 3, 2, 1).contiguous()
         x_detached = x.detach()
-        self.B = x_detached.new(batch_size, self.width, self.height, 1, self.conv_channel_out, self.conv_channel_in).zero_().to(self.device).detach()
+        self.B = x_detached.new_zeros(size=(batch_size, self.width, self.height, 1, self.conv_channel_out,
+                                self.conv_channel_in), requires_grad=False).to(self.device)
 
         x = self.routing(x, x_detached, batch_size, self.routing_iter)
 
@@ -174,18 +175,22 @@ class Conv3DCaps(nn.Module):
 
             if iter_idx == routing_iter-1:
                 S = (k*x).sum(dim=-1, keepdim=True)
-                S_hat = squash(S, dim=3)
+                S_hat = squash(S.permute(0, 4, 3, 1, 2, 5).contiguous(), dim=2)
+                # S_hat = squash(S, dim=-1)
 
             else:
                 S = (k*x_detached).sum(dim=-1, keepdim=True)
-                S_hat = squash(S, dim=3)
+                tmp_S = squash(S.permute(0, 4, 3, 1, 2, 5).contiguous(), dim=2)
+                S_hat = tmp_S.permute(0, 3, 4, 2, 1, 5).contiguous()
+                # S_hat = squash(S, dim=-1)
                 agreements = (S_hat * x_detached).sum(dim=3, keepdim=True)
                 self.B = self.B + agreements
 
 
         S_hat = S_hat.squeeze(-1)
 
-        return S_hat.permute(0, 4, 3, 1, 2).contiguous()
+        # return S_hat.permute(0, 4, 3, 1, 2).contiguous()
+        return S_hat
 
 
 
@@ -220,7 +225,7 @@ class FC_Caps(nn.Module):
 
         u_hat_detached = u_hat.detach()
 
-        b_ij = x.new(x.size()[0], self.input_capsules, self.output_capsules, 1).zero_().to(self.device)
+        b_ij = x.new_zeros(size=(x.size()[0], self.input_capsules, self.output_capsules, 1), requires_grad=False).to(self.device)
 
         #Dynamic routing
         for iter_idx in range(self.routing_iter):
