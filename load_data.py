@@ -10,7 +10,7 @@ from torchvision import datasets, transforms
 
 class FashionMNIST:
 
-    def __init__(self, data_path, batch_size, shuffle, num_workers=4, rotation_degrees=10, translate=(0,0.1), scale=(0.9,1.2)):
+    def __init__(self, data_path, batch_size, shuffle, num_workers=4, rotation_degrees=30, translate=(0,0.2), scale=(0.85,1.2)):
 
         self.data_path = data_path
         self.batch_size = batch_size
@@ -20,6 +20,7 @@ class FashionMNIST:
         self.translate = translate
         self.scale = scale
         self.img_size = 28
+        self.num_class = 10
 
     def __call__(self):
 
@@ -44,11 +45,11 @@ class FashionMNIST:
                                                         num_workers=self.num_workers)
 
 
-        return train_loader, test_loader, self.img_size
+        return train_loader, test_loader, self.img_size, self.num_class
 
 class Cifar10:
 
-    def __init__(self, data_path, batch_size, shuffle, num_workers=4, rotation_degrees=30, translate=(0,0.1), scale=(0.1, 0.2), shear=None):
+    def __init__(self, data_path, batch_size, shuffle, num_workers=4, rotation_degrees=30, translate=(0,0.2), scale=(0.85, 1.2)):
 
         self.data_path = data_path
         self.batch_size = batch_size
@@ -59,6 +60,7 @@ class Cifar10:
         self.scale = scale
         self.shear = shear
         self.img_size = 32
+        self.num_class = 10
 
     def __call__(self):
 
@@ -68,8 +70,7 @@ class Cifar10:
                                                         transform=transforms.Compose([transforms.RandomAffine(
                                                                                                             degrees=self.rotation,
                                                                                                             translate=self.translate,
-                                                                                                            scale=self.scale,
-                                                                                                            shear=self.shear
+                                                                                                            scale=self.scale
                                                         ), transforms.Grayscale(), transforms.ToTensor()])),
                                                         batch_size=self.batch_size,
                                                         shuffle=self.shuffle,
@@ -87,4 +88,4 @@ class Cifar10:
 
 
 
-        return train_loader, test_loader, self.img_size
+        return train_loader, test_loader, self.img_size, self.num_class
