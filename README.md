@@ -20,7 +20,7 @@ Below are the results from the reconstruction network of this model at the end o
 
 <figure class="image">
   <img src="graphs/Original_vs_Reconstructed_Epoch_500.png">
-  <figcaption>Epoch 500</figcaption>
+  <div align="center"><figcaption>Epoch 500</figcaption></div>
 </figure>
 
 <figure class="image">
