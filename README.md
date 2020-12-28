@@ -13,8 +13,12 @@ This implementation was tested on FashionMNIST dataset and it managed to achieve
 ### Reconstruction Network's Result
 Below are the results from the reconstruction network of this model at the end of epoch 0, 500 and 995. The top row are the input images to the model along with their corresponding classes and the bottom row are the images reconstructed back from the final capsules along with the network's class prediction on the given image.
 
-<img src="graphs/Original_vs_Reconstructed_Epoch_0.png" width="800" />
-<p style="text-align: center;">Epoch 0 </p> 
+```
+<figure class="image">
+  <img src="graphs/Original_vs_Reconstructed_Epoch_0.png" width="800">
+  <figcaption>Epoch 0</figcaption>
+</figure>
+```
 <img src="graphs/Original_vs_Reconstructed_Epoch_500.png" width="800"/>  
 <p style="text-align: center;">Epoch 500</p>
 <img src="graphs/Original_vs_Reconstructed_Epoch_995.png" width="800"/> 
