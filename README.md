@@ -36,7 +36,7 @@ It is evident that the model was learning as expected. The loss were steadily de
 
 
 
-## References:
+## References
 
 [1] https://github.com/brjathu/deepcaps
 [2] https://github.com/HopefulRational/DeepCaps-PyTorch
