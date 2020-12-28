@@ -16,7 +16,7 @@ import cfg
 
 
 
-train_loader, test_loader, img_size, num_class = FashionMNIST(data_path=cfg.DATASET_FOLDER,
+train_loader, test_loader, img_size, num_class = Cifar10(data_path=cfg.DATASET_FOLDER,
                                                               batch_size=cfg.BATCH_SIZE,
                                                               shuffle=True)()
 

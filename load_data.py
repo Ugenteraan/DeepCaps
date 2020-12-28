@@ -58,7 +58,7 @@ class Cifar10:
         self.rotation = rotation_degrees
         self.translate = translate
         self.scale = scale
-        self.img_size = 32
+        self.img_size = 28
         self.num_class = 10
 
     def __call__(self):
@@ -70,7 +70,7 @@ class Cifar10:
                                                                                                             degrees=self.rotation,
                                                                                                             translate=self.translate,
                                                                                                             scale=self.scale
-                                                        ), transforms.Grayscale(), transforms.ToTensor()])),
+                                                        ), transforms.Grayscale(), transforms.Resize(self.img_size), transforms.ToTensor()])),
                                                         batch_size=self.batch_size,
                                                         shuffle=self.shuffle,
                                                         num_workers=self.num_workers)
@@ -80,6 +80,7 @@ class Cifar10:
                                                         download=True,
                                                         transform=transforms.Compose([
                                                                                       transforms.Grayscale(),
+                                                                                      transforms.Resize(self.img_size),
                                                                                       transforms.ToTensor()])),
                                                         batch_size=self.batch_size,
                                                         shuffle=self.shuffle,
