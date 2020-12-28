@@ -5,20 +5,22 @@ This implementation is done by referring to the official implementation of DeepC
 
 To train on your own custom dataset, simply change the required parameters in `cfg.py` and write your own class to load the dataset in `load_data.py`. Finally, replace line 19 in `train.py` appropriately to point to your custom class. No further changes should be required to train the model. The training can be executed with `python train.py`.
 
-This implementation was tested on FashionMNIST dataset and it managed to achieve an accuracy of 88% on the testing set. In the official paper however, the model has achieved an accuracy of 94% on this dataset. Perhaps with more adjustments on the learning rate and longer training time, the same accuracy can be achieved. Below are some of the results from the training.
+This implementation was tested on FashionMNIST dataset and it managed to achieve an accuracy of 88% on the testing set. In the official paper however, the model has achieved an accuracy of 94% on this dataset. Below are the results from the training.
 
-### Losses and Accuracies over 1000 epochs
+### Loss and Accuracy over 1000 epochs
 <img src="graphs/loss_graph.png" width="800" />  <img src="graphs/accuracy_graph.png" width="800"/>  
 
 ### Reconstruction Network's Result
 Below are the results from the reconstruction network of this model at the end of epoch 0, 500 and 995. The top row are the input images to the model along with their corresponding classes and the bottom row are the images reconstructed back from the final capsules along with the network's class prediction on the given image.
 
-<img src="graphs/Original_vs_Reconstructed_Epoch_0.png" width="800" />  <img src="graphs/Original_vs_Reconstructed_Epoch_500.png" width="800"/>  
-<img src="graphs/Original_vs_Reconstructed_Epoch_995.png" width="800"/>  
+<img src="graphs/Original_vs_Reconstructed_Epoch_0.png" width="800" />
+Epoch 0  <img src="graphs/Original_vs_Reconstructed_Epoch_500.png" width="800"/>  
+Epoch 500
+<img src="graphs/Original_vs_Reconstructed_Epoch_995.png" width="800"/>  Epoch 995
 
 
 ### Conclusion
-
+It is evident that the model was learning as expected. The loss were steadily decreasing while the accuracy improved over the epochs. It can also be seen that the reconstruction network was improving over the epochs. Perhaps with more adjustments on the learning rate and longer training time, this implementation can achieve the accuracy reported in the official paper.
 
 
 
