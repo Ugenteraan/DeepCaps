@@ -1,5 +1,5 @@
 ﻿
-# Deep-CapsNet
+# DeepCaps : Going Deeper with Capsule Networks with PyTorch
 
 This implementation is done by referring to the official implementation of DeepCaps by [1], a PyTorch implementation [2] and the official paper at https://arxiv.org/abs/1904.09546. 
 
