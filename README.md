@@ -7,7 +7,7 @@ To train on your own custom dataset, simply change the required parameters in `c
 
 This implementation was tested on FashionMNIST dataset and it managed to achieve an accuracy of 88%. In the official paper however, the model has achieved an accuracy of 94% on this dataset. Perhaps with more adjustments on the learning rate and longer training time, the same accuracy can be achieved. Below are some of the results from the training.
 
-![](graphs/loss_graph.png)		![](graphs/accuracy_graph.png)
+![Losses over 1000 epochs](graphs/loss_graph.png)		![Accuracies over 1000 epochs](graphs/accuracy_graph.png)
 
 
 
