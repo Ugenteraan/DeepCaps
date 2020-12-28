@@ -15,7 +15,7 @@ Below are the results from the reconstruction network of this model at the end o
 
 <figure class="image">
   <img src="graphs/Original_vs_Reconstructed_Epoch_0.png" >
-  <figcaption>Epoch 0</figcaption>
+  <div align="center"><figcaption>Epoch 0</figcaption></div>
 </figure>
 
 <figure class="image">
@@ -25,7 +25,7 @@ Below are the results from the reconstruction network of this model at the end o
 
 <figure class="image">
   <img src="graphs/Original_vs_Reconstructed_Epoch_995.png">
-  <figcaption>Epoch 995</figcaption>
+  <div align="center"><figcaption>Epoch 995</figcaption></div>
 </figure>
 
 ### Conclusion
