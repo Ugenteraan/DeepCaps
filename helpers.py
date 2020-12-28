@@ -40,3 +40,11 @@ def accuracy_calc(predictions, labels):
     accuracy = (correct_pred.item()*100)/num_data
 
     return accuracy
+
+def get_learning_rate(optimizer):
+    '''
+    Returns the current LR from the optimizer module.
+    '''
+
+    for params in optimizer.param_groups:
+        return params['lr']

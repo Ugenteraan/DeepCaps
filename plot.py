@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 
-
+fig=plt.figure(figsize=(20, 5))
 
 def plot_loss_acc(path, num_epoch, train_accuracies, train_losses, test_accuracies, test_losses):
     '''
@@ -45,9 +45,8 @@ def plot_reconstruction(path, num_epoch, original_images, reconstructed_images, 
     '''
     Plots 10 reconstructed and original images from testing set.
     '''
-
+    global fig
     plt.clf()
-    fig=plt.figure(figsize=(20, 5))
     columns = 10
     rows = 2
 

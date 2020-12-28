@@ -10,13 +10,13 @@ import numpy as np
 import torch
 from model import DeepCapsModel
 from load_data import FashionMNIST, Cifar10
-from helpers import onehot_encode, accuracy_calc
+from helpers import onehot_encode, accuracy_calc, get_learning_rate
 from plot import plot_loss_acc, plot_reconstruction
 import cfg
 
 
 
-train_loader, test_loader, img_size, num_class = Cifar10(data_path=cfg.DATASET_FOLDER,
+train_loader, test_loader, img_size, num_class = FashionMNIST(data_path=cfg.DATASET_FOLDER,
                                                               batch_size=cfg.BATCH_SIZE,
                                                               shuffle=True)()
 
@@ -52,6 +52,8 @@ def train(img_size, device=torch.device('cpu'), learning_rate=1e-3, num_epochs=5
     #training and testing
     for epoch_idx in range(num_epochs):
 
+
+        print(f"Training and testing for epoch {epoch_idx} began with LR : {get_learning_rate(optimizer)}")
         #Training
         batch_loss = 0
         batch_accuracy = 0
@@ -76,9 +78,10 @@ def train(img_size, device=torch.device('cpu'), learning_rate=1e-3, num_epochs=5
 
 
         epoch_accuracy = batch_accuracy/(batch_idx+1)
-        print(f"Epoch : {epoch_idx}, Training Accuracy : {epoch_accuracy}, Training Loss : {batch_loss}")
+        avg_batch_loss = batch_loss/(batch_idx+1)
+        print(f"Epoch : {epoch_idx}, Training Accuracy : {epoch_accuracy}, Training Loss : {avg_batch_loss}")
 
-        training_loss_list.append(batch_loss)
+        training_loss_list.append(avg_batch_loss)
         training_acc_list.append(epoch_accuracy)
 
 
@@ -103,14 +106,15 @@ def train(img_size, device=torch.device('cpu'), learning_rate=1e-3, num_epochs=5
 
 
         epoch_accuracy = batch_accuracy/(batch_idx+1)
-        print(f"Epoch : {epoch_idx}, Testing Accuracy : {epoch_accuracy}, Testing Loss : {batch_loss}")
+        avg_batch_loss = batch_loss/(batch_idx+1)
+        print(f"Epoch : {epoch_idx}, Testing Accuracy : {epoch_accuracy}, Testing Loss : {avg_batch_loss}")
 
-        testing_loss_list.append(batch_loss)
+        testing_loss_list.append(avg_batch_loss)
         testing_acc_list.append(epoch_accuracy)
 
         lr_scheduler.step()
 
-        if not graphs_folder is None and epoch_idx%10==0:
+        if not graphs_folder is None and epoch_idx%5==0:
             plot_loss_acc(path=graphs_folder, num_epoch=epoch_idx, train_accuracies=training_acc_list, train_losses=training_loss_list,
                           test_accuracies=testing_acc_list, test_losses=testing_loss_list)
 
