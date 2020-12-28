@@ -5,11 +5,12 @@ This implementation is done by referring to the official implementation of DeepC
 
 To train on your own custom dataset, simply change the required parameters in `cfg.py` and write your own class to load the dataset in `load_data.py`. Finally, replace line 19 in `train.py` appropriately to point to your custom class. No further changes should be required to train the model. The training can be executed with `python train.py`.
 
-This implementation was tested on FashionMNIST dataset and it managed to achieve an accuracy of 88%. In the official paper however, the model has achieved an accuracy of 94% on this dataset. Perhaps with more adjustments on the learning rate and longer training time, the same accuracy can be achieved. Below are some of the results from the training.
+This implementation was tested on FashionMNIST dataset and it managed to achieve an accuracy of 88% on the testing set. In the official paper however, the model has achieved an accuracy of 94% on this dataset. Perhaps with more adjustments on the learning rate and longer training time, the same accuracy can be achieved. Below are some of the results from the training.
 
-### Lossess and Accuracies over 1000 epochs
-<img src="graphs/loss_graph.png" width="400"/>  <img src="graphs/accuracy_graph.png" width="400"/>  
+### Losses and Accuracies over 1000 epochs
+<img src="graphs/loss_graph.png" width="700" />  <img src="graphs/accuracy_graph.png" width="700"/>  
 
+### Reconstruction Network's Result
 
 
 
