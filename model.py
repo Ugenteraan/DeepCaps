@@ -233,7 +233,7 @@ class FC_Caps(nn.Module):
             c_ij = func.softmax(b_ij, dim=2)
 
             if iter_idx == self.routing_iter - 1:
-                s_j = (c_ij * u_hat).sum(dim=1, keepdim=True) #multiply with the original u_hat since we want the gradient flow.
+                s_j = (c_ij * u_hat).sum(dim=1, keepdim=True) + self.b #multiply with the original u_hat since we want the gradient flow.
                 v_j = squash(s_j, dim=-1)
 
             else:
