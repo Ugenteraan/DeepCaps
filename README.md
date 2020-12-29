@@ -10,23 +10,23 @@ To train on your own custom dataset, simply change the required parameters in `c
 This implementation was tested on FashionMNIST dataset and it managed to achieve an accuracy of 88% on the testing set. In the official paper however, the model has achieved an accuracy of 94% on this dataset. Below are the results from the training.
 
 #### Loss and Accuracy over 1000 epochs
-<img src="graphs/loss_graph.png" width="800" />  <img src="graphs/accuracy_graph.png" width="800"/>  
+<img src="readme_images/loss_graph.png" width="800" />  <img src="readme_images/accuracy_graph.png" width="800"/>  
 
 #### Reconstruction Network's Result
 Below are the results from the reconstruction network of this model at the end of epoch 0, 500 and 995. The top row are the input images to the model along with their corresponding classes and the bottom row are the images reconstructed back from the final capsules along with the network's class prediction on the given image.
 
 <figure class="image">
-  <img src="graphs/Original_vs_Reconstructed_Epoch_0.png" >
+  <img src="readme_images/Original_vs_Reconstructed_Epoch_0.png" >
   <div align="center"><figcaption>Epoch 0</figcaption></div>
 </figure>
 
 <figure class="image">
-  <img src="graphs/Original_vs_Reconstructed_Epoch_500.png">
+  <img src="readme_images/Original_vs_Reconstructed_Epoch_500.png">
   <div align="center"><figcaption>Epoch 500</figcaption></div>
 </figure>
 
 <figure class="image">
-  <img src="graphs/Original_vs_Reconstructed_Epoch_995.png">
+  <img src="readme_images/Original_vs_Reconstructed_Epoch_995.png">
   <div align="center"><figcaption>Epoch 995</figcaption></div>
 </figure>
 
