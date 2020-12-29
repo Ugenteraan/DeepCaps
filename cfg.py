@@ -5,14 +5,14 @@ Configurations.
 
 import helpers
 
-LEARNING_RATE = 1e-2
-NUM_EPOCHS = 1000
-BATCH_SIZE = 64
+LEARNING_RATE = 5e-3
+NUM_EPOCHS = 501
+BATCH_SIZE = 128
 LAMBDA_ = 0.5
 M_PLUS = 0.9
 M_MINUS = 0.1
-DECAY_STEP = 15
-DECAY_GAMMA = 0.8
+DECAY_STEP = 20
+DECAY_GAMMA = 0.95
 CHECKPOINT_FOLDER = './saved_model/'
 CHECKPOINT_NAME = 'deepcaps.pth'
 DATASET_FOLDER = './dataset_folder/'

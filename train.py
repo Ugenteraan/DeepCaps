@@ -40,7 +40,7 @@ def train(img_size, device=torch.device('cpu'), learning_rate=1e-3, num_epochs=5
             sys.exit()
 
     optimizer = torch.optim.Adam(deepcaps.parameters(), lr=learning_rate)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=decay_step, gamma=gamma)
+    # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=decay_step, gamma=gamma)
 
     best_accuracy = 0
 
@@ -112,7 +112,7 @@ def train(img_size, device=torch.device('cpu'), learning_rate=1e-3, num_epochs=5
         testing_loss_list.append(avg_batch_loss)
         testing_acc_list.append(epoch_accuracy)
 
-        lr_scheduler.step()
+        # lr_scheduler.step()
 
         if not graphs_folder is None and epoch_idx%5==0:
             plot_loss_acc(path=graphs_folder, num_epoch=epoch_idx, train_accuracies=training_acc_list, train_losses=training_loss_list,
