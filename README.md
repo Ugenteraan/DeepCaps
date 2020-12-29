@@ -30,9 +30,8 @@ Below are the results from the reconstruction network of this model at the end o
   <div align="center"><figcaption>Epoch 995</figcaption></div>
 </figure>
 
-## Conclusion
-It is evident that the model was learning as expected. The loss were steadily decreasing while the accuracy improved over the epochs. It can also be seen that the reconstruction network was improving over the epochs. Perhaps with more adjustments on the learning rate and longer training time, this implementation can achieve the accuracy reported in the official paper.
-
+## Conclusion 
+It is evident that the model's loss was steadily decreasing while the accuracy improved over the epochs. The output of the reconstruction network was also improving over the epochs. Perhaps with more adjustments on the learning rate and longer training time, this implementation can achieve a higher accuracy.
 
 
 
