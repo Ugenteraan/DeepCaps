@@ -210,8 +210,8 @@ class FC_Caps(nn.Module):
         self.routing_iter = routing_iter
         self.device = device
 
-        self.W = nn.Parameter(torch.randn(1, self.input_capsules, self.output_capsules, self.out_dimensions, self.in_dimensions)*0.01).to(self.device)
-        self.b = nn.Parameter(torch.randn(1, 1, self.output_capsules, self.out_dimensions)*0.01).to(self.device)
+        self.W = nn.Parameter(torch.randn(1, self.input_capsules, self.output_capsules, self.out_dimensions, self.in_dimensions)*0.05)
+        self.b = nn.Parameter(torch.randn(1, 1, self.output_capsules, self.out_dimensions)*0.05)
 
 
     def forward(self, x):

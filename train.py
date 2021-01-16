@@ -67,7 +67,7 @@ def train(img_size, device=torch.device('cpu'), learning_rate=1e-3, num_epochs=5
 
             optimizer.zero_grad()
 
-            outputs, masked, reconstructed, indices = deepcaps(data, onehot_label)
+            outputs, _, reconstructed, indices = deepcaps(data, onehot_label)
             loss = deepcaps.loss(x=outputs, reconstructed=reconstructed, data=data, labels=onehot_label, lambda_=lambda_, m_plus=m_plus, m_minus=m_minus)
 
             loss.backward()
@@ -97,7 +97,7 @@ def train(img_size, device=torch.device('cpu'), learning_rate=1e-3, num_epochs=5
             data, labels = test_data.to(device), labels.to(device)
             onehot_label = onehot_encode(labels, num_classes=num_classes, device=device)
 
-            outputs, masked, reconstructed, indices = deepcaps(data, onehot_label)
+            outputs, _, reconstructed, indices = deepcaps(data, onehot_label)
             loss = deepcaps.loss(x=outputs, reconstructed=reconstructed, data=data, labels=onehot_label,  lambda_=lambda_, m_plus=m_plus, m_minus=m_minus)
 
             batch_loss += loss.item()
